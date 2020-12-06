@@ -1,0 +1,133 @@
+---
+title: "analysis"
+author: "Joshua Berry"
+date: "12/6/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(GGally)
+library(knitr)
+library(rstanarm)
+```
+
+## R Markdown
+
+```{r}
+results <- read_csv("results.csv") %>%
+  drop_na(condition, Q69)
+
+numeric_results <- read_csv("numeric_results.csv",
+                          col_types = cols(Q69 = col_number(),
+                          Q27 = col_number(),
+                          Q28 = col_number(),
+                          Q36_1 = col_number()))
+
+numeric_results_white_low <-
+  numeric_results %>%
+  filter(condition == "whitelowaffect")
+
+numeric_results_black_low <-
+  numeric_results %>%
+  filter(condition == "blacklowaffect")
+
+numeric_results_white_high <-
+  numeric_results %>%
+  filter(condition == "whitehighaffect")
+
+numeric_results_black_high <-
+  numeric_results %>%
+  filter(condition == "blackhighaffect")
+
+
+moral_responsibility.lm <- lm(Q69 ~ condition -1, data = numeric_results)
+
+summary(moral_responsibility.lm)
+confint(moral_responsibility.lm)
+
+punishment.lm <- lm(Q27 ~ condition -1, data = numeric_results)
+
+summary(punishment.lm)
+confint(punishment.lm)
+
+deathpen.lm <- lm(Q28 ~ condition -1, data = numeric_results)
+
+summary(deathpen.lm)
+confint(deathpen.lm)
+
+moraloutrage.lm <- lm(Q36_1 ~ condition -1, data = numeric_results)
+
+summary(moraloutrage.lm)
+confint(moraloutrage.lm)
+
+race_Q69_two_tail_low <- t.test(numeric_results_white_low$Q69, y = numeric_results_black_low$Q69, 
+       alternative = c("two.sided", "less", "greater"), mu = 0, 
+        paired = FALSE, var.equal = FALSE, conf.level = 0.95)
+
+race_Q69_two_tail_high <- t.test(numeric_results_white_high$Q69, y = numeric_results_black_high$Q69, 
+       alternative = c("two.sided", "less", "greater"), mu = 0, 
+        paired = FALSE, var.equal = FALSE, conf.level = 0.95)
+  
+
+race_Q27_two_tail_low <- t.test(numeric_results_white_low$Q27, y = numeric_results_black_low$Q27, 
+       alternative = c("two.sided", "less", "greater"), mu = 0, 
+        paired = FALSE, var.equal = FALSE, conf.level = 0.95)
+
+race_Q27_two_tail_high <- t.test(numeric_results_white_high$Q27, y = numeric_results_black_high$Q27, 
+       alternative = c("two.sided", "less", "greater"), mu = 0, 
+        paired = FALSE, var.equal = FALSE, conf.level = 0.95)
+
+race_Q28_two_tail_low <- t.test(numeric_results_white_low$Q28, y = numeric_results_black_low$Q28, 
+       alternative = c("two.sided", "less", "greater"), mu = 0, 
+        paired = FALSE, var.equal = FALSE, conf.level = 0.95)
+
+race_Q28_two_tail_high <- t.test(numeric_results_white_high$Q28, y = numeric_results_black_high$Q28, 
+       alternative = c("two.sided", "less", "greater"), mu = 0, 
+        paired = FALSE, var.equal = FALSE, conf.level = 0.95)     
+
+race_Q36_two_tail_low <- t.test(numeric_results_white_low$Q36_1, y = numeric_results_black_low$Q36_1, 
+       alternative = c("two.sided", "less", "greater"), mu = 0, 
+        paired = FALSE, var.equal = FALSE, conf.level = 0.95)
+
+race_Q36_two_tail_high <- t.test(numeric_results_white_high$Q36_1, y = numeric_results_black_high$Q36_1, 
+       alternative = c("two.sided", "less", "greater"), mu = 0, 
+        paired = FALSE, var.equal = FALSE, conf.level = 0.95)   
+
+```
+```{r}
+affect_Q69_two_tail_white <- t.test(numeric_results_white_low$Q69, y = numeric_results_white_high$Q69, 
+       alternative = c("two.sided", "less", "greater"), mu = 0, 
+        paired = FALSE, var.equal = FALSE, conf.level = 0.95)
+
+affect_Q69_two_tail_black <- t.test(numeric_results_black_low$Q69, y = numeric_results_black_high$Q69, 
+       alternative = c("two.sided", "less", "greater"), mu = 0, 
+        paired = FALSE, var.equal = FALSE, conf.level = 0.95)
+  
+
+affect_Q27_two_tail_white <- t.test(numeric_results_white_low$Q27, y = numeric_results_white_high$Q27, 
+       alternative = c("two.sided", "less", "greater"), mu = 0, 
+        paired = FALSE, var.equal = FALSE, conf.level = 0.95)
+
+affect_Q27_two_tail_black <- t.test(numeric_results_black_low$Q27, y = numeric_results_black_high$Q27, 
+       alternative = c("two.sided", "less", "greater"), mu = 0, 
+        paired = FALSE, var.equal = FALSE, conf.level = 0.95)
+
+affect_Q28_two_tail_white <- t.test(numeric_results_white_low$Q28, y = numeric_results_white_high$Q28, 
+       alternative = c("two.sided", "less", "greater"), mu = 0, 
+        paired = FALSE, var.equal = FALSE, conf.level = 0.95)
+
+affect_Q28_two_tail_black <- t.test(numeric_results_black_low$Q28, y = numeric_results_black_high$Q28, 
+       alternative = c("two.sided", "less", "greater"), mu = 0, 
+        paired = FALSE, var.equal = FALSE, conf.level = 0.95)     
+
+affect_Q36_two_tail_white <- t.test(numeric_results_white_low$Q36_1, y = numeric_results_white_high$Q36_1, 
+       alternative = c("two.sided", "less", "greater"), mu = 0, 
+        paired = FALSE, var.equal = FALSE, conf.level = 0.95)
+
+affect_Q36_two_tail_black <- t.test(numeric_results_black_low$Q36_1, y = numeric_results_black_high$Q36_1, 
+       alternative = c("two.sided", "less", "greater"), mu = 0, 
+        paired = FALSE, var.equal = FALSE, conf.level = 0.95)  
+```
+
