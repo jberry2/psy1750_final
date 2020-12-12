@@ -10,20 +10,107 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(GGally)
 library(knitr)
-library(rstanarm)
+library(gtsummary)
+library(gt)
+library(rstatix)
 ```
 
 ## R Markdown
 
-```{r}
-results <- read_csv("results.csv") %>%
-  drop_na(condition, Q69)
+```{r, cleaning}
+results <- read.csv("results.csv")
+
+female <- results %>%
+  filter(Q2 == "Female")
 
 numeric_results <- read_csv("numeric_results.csv",
                           col_types = cols(Q69 = col_number(),
                           Q27 = col_number(),
                           Q28 = col_number(),
-                          Q36_1 = col_number()))
+                          Q36_1 = col_number(),
+                          Q2 = col_number(),
+                          Q8 = col_number(),
+                          Q10 = col_number(),
+                          Q14  = col_number(),
+                          Q29  = col_number(),
+                          Q16 = col_number(),
+                          `Q67_Page Submit`= col_number(),
+                          `Duration (in seconds)` = col_number())) %>%
+  mutate(condition_scale = case_when(condition == "whitelowaffect" ~ 1,
+                                     condition == "blacklowaffect" ~ 2,
+                                     condition == "whitehighaffect" ~ 3,
+                                     condition == "blackhighaffect" ~ 4,
+                                     TRUE ~ NA_real_)) %>%
+  filter(condition %in% c("blackhighaffect", "blacklowaffect",
+                         "whitehighaffect", "whitelowaffect")) %>%
+    rename(gender = Q2, age = Q8, race = Q10,
+         education = Q14, political_identification = Q16, religiosity = Q29,
+         duration = `Duration (in seconds)`, time = `Q67_Page Submit`)
+
+
+
+  mean(numeric_results$age, na.rm = TRUE)
+
+
+mean_punish <-
+  numeric_results %>%
+  filter(condition %in% c("blackhighaffect", "blacklowaffect",
+                         "whitehighaffect", "whitelowaffect")) %>%
+  group_by(condition) %>%
+  summarize(mean_punishment = mean(Q27, na.rm = TRUE),
+            sdpunishment = sd(Q27, na.rm = TRUE),
+            n = n()) %>%
+  mutate(se = sdpunishment / sqrt(n),
+         lower.ci.punish = mean_punishment - qt(1 - (0.05 / 2), n - 1) * se,
+         upper.ci.punish = mean_punishment + qt(1 - (0.05 / 2), n - 1) * se)
+
+mean_responsible <-
+  numeric_results %>%
+  filter(condition %in% c("blackhighaffect", "blacklowaffect",
+                         "whitehighaffect", "whitelowaffect")) %>%
+  group_by(condition) %>%
+  summarize(mean_responsible = mean(Q69, na.rm = TRUE),
+            sd = sd(Q69, na.rm = TRUE),
+            n = n()) %>%
+  mutate(se = sd / sqrt(n),
+         lower.ci = mean_responsible - qt(1 - (0.05 / 2), n - 1) * se,
+         upper.ci = mean_responsible + qt(1 - (0.05 / 2), n - 1) * se)
+
+mean_deathpen <-
+  numeric_results %>%
+  filter(condition %in% c("blackhighaffect", "blacklowaffect",
+                         "whitehighaffect", "whitelowaffect")) %>%
+  group_by(condition) %>%
+  summarize(mean_deathpen = mean(Q28, na.rm = TRUE),
+            sd = sd(Q69, na.rm = TRUE),
+            n = n()) %>%
+  mutate(se = sd / sqrt(n),
+         lower.ci = mean_deathpen - qt(1 - (0.05 / 2), n - 1) * se,
+         upper.ci = mean_deathpen + qt(1 - (0.05 / 2), n - 1) * se)
+
+mean_time <-
+  numeric_results %>%
+  filter(condition %in% c("blackhighaffect", "blacklowaffect",
+                         "whitehighaffect", "whitelowaffect")) %>%
+  group_by(condition) %>%
+  summarize(mean = mean(time, na.rm = TRUE),
+            sd = sd(Q69, na.rm = TRUE),
+            n = n()) %>%
+  mutate(se = sd / sqrt(n),
+         lower.ci = mean - qt(1 - (0.05 / 2), n - 1) * se,
+         upper.ci = mean + qt(1 - (0.05 / 2), n - 1) * se)
+
+mean_outrage <-
+  numeric_results %>%
+  filter(condition %in% c("blackhighaffect", "blacklowaffect",
+                         "whitehighaffect", "whitelowaffect")) %>%
+  group_by(condition) %>%
+  summarize(mean_outrage = mean(Q36_1, na.rm = TRUE),
+            sd = sd(Q69, na.rm = TRUE),
+            n = n()) %>%
+  mutate(se = sd / sqrt(n),
+         lower.ci = mean_outrage - qt(1 - (0.05 / 2), n - 1) * se,
+         upper.ci = mean_outrage + qt(1 - (0.05 / 2), n - 1) * se)
 
 numeric_results_white_low <-
   numeric_results %>%
@@ -40,6 +127,183 @@ numeric_results_white_high <-
 numeric_results_black_high <-
   numeric_results %>%
   filter(condition == "blackhighaffect")
+```
+
+```{r, graphs}
+
+
+responsible_graph <-
+  mean_responsible %>%
+ggplot(aes(x = condition, y = mean_responsible, fill = condition)) +
+  geom_col(position=position_dodge()) +
+  geom_errorbar(mapping = aes(x = condition, ymin = lower.ci, ymax = upper.ci),
+                width = .2) + 
+  ylim(0, 5) +
+  scale_fill_discrete(name = "Condition", labels = c("Black High Affect", "Black Low Affect",
+                         "White High Affect", "White Low Affect")) +
+  scale_x_discrete(labels=c("Black High Affect", "Black Low Affect",
+                         "White High Affect", "White Low Affect")) +
+  labs(title = "The Effect of Race and Affect Treatment on Assigned Moral Responsibility",
+       subtitle = "Scale of 1 (Strongly Disagree) to 5 (Strongly Agree)",
+       x = "Treatment Group",
+       y = "Mean Responsibility",
+       source = "Original mTurk study, conducted 12/3-12/5") +
+  theme_bw()
+
+punish_graph <-
+  mean_punish %>%
+ggplot(aes(x = condition, y = mean_punishment, fill = condition)) +
+  geom_col(position=position_dodge()) +
+  geom_errorbar(mapping = aes(x = condition, ymin = lower.ci.punish, ymax = upper.ci.punish),
+                width = .2) + 
+  ylim(0, 7) +
+  scale_fill_discrete(name = "Condition", labels = c("Black High Affect", "Black Low Affect",
+                         "White High Affect", "White Low Affect")) +
+  scale_x_discrete(labels=c("Black High Affect", "Black Low Affect",
+                         "White High Affect", "White Low Affect")) +
+  labs(title = "The Effect of Race and Affect Treatment on Assigned Punishment",
+       subtitle = "Scale of 1 (0 years) to 7 (Life imprisonment, no parole)",
+       x = "Treatment Group",
+       y = "Mean Punishment",
+       source = "Original mTurk study, conducted 12/3-12/5") +
+  theme_bw()
+
+
+deathpen_graph <-
+  mean_deathpen%>%
+ggplot(aes(x = condition, y = mean_deathpen, fill = condition)) +
+  geom_col(position=position_dodge()) +
+  geom_errorbar(mapping = aes(x = condition, ymin = lower.ci, ymax = upper.ci),
+                width = .2) + 
+  ylim(0, 5) +
+  scale_fill_discrete(name = "Condition", labels = c("Black High Affect", "Black Low Affect",
+                         "White High Affect", "White Low Affect")) +
+  scale_x_discrete(labels=c("Black High Affect", "Black Low Affect",
+                         "White High Affect", "White Low Affect")) +
+  labs(title = "The Effect of Race and Affect Treatment on Assigned Death Penalty Deservedness",
+       subtitle = "Scale of 1 (Strongly Disagree) to 5 (Strongly Agree)",
+       x = "Treatment Group",
+       y = "Mean Death",
+       source = "Original mTurk study, conducted 12/3-12/5") +
+  theme_bw()
+
+
+outrage_graph <-
+  mean_outrage%>%
+ggplot(aes(x = condition, y = mean_outrage, fill = condition)) +
+  geom_col(position=position_dodge()) +
+  geom_errorbar(mapping = aes(x = condition, ymin = lower.ci, ymax = upper.ci),
+                width = .2) + 
+  ylim(0, 7) +
+  scale_fill_discrete(name = "Condition", labels = c("Black High Affect", "Black Low Affect",
+                         "White High Affect", "White Low Affect")) +
+  scale_x_discrete(labels=c("Black High Affect", "Black Low Affect",
+                         "White High Affect", "White Low Affect")) +
+  labs(title = "The Effect of Race and Affect Treatment on Moral Outrage",
+       subtitle = "Numerical scale of 1 to 7",
+       x = "Treatment Group",
+       y = "Mean Outrage",
+       source = "Original mTurk study, conducted 12/3-12/5") +
+  theme_bw()
+
+responsibility_regression_graph <-
+  numeric_results %>%
+  filter(condition %in% c("blackhighaffect", "blacklowaffect",
+                         "whitehighaffect", "whitelowaffect")) %>%
+  drop_na(Q69) %>%
+   ggplot(aes(x = condition_scale, y = as.numeric(Q69), color = condition_scale)) +
+   geom_point() +
+   geom_smooth(method = "loess", formula = y~x) +
+  scale_color_continuous(name = "Condition", limits = c(1,4), labels = c("White Low Affect", "Black Low Affect",
+                         "White High Affect", "Black High Affect")) +
+  scale_x_continuous(labels=c("White Low Affect", "Black Low Affect",
+                         "White High Affect", "Black High Affect")) +
+  labs(title = "LOEES Regression of Treatment Group Against Assigned Responsibility",
+       subtitle = "responsibility ~ treatment",
+       x = "Treatment Group",
+       y = "Responsibility",
+       source = "Original mTurk study, conducted 12/3-12/5") +
+  theme_bw()
+
+
+punishment_regression_graph <-
+  numeric_results %>%
+  filter(condition %in% c("blackhighaffect", "blacklowaffect",
+                         "whitehighaffect", "whitelowaffect")) %>%
+  drop_na(Q27) %>%
+   ggplot(aes(x = condition_scale, y = as.numeric(Q27), color = condition_scale)) +
+   geom_point() +
+   geom_smooth(method = "loess", formula = y~x) +
+  scale_color_continuous(name = "Condition", limits = c(1,4), labels = c("White Low Affect", "Black Low Affect",
+                         "White High Affect", "Black High Affect")) +
+  scale_x_continuous(labels=c("White Low Affect", "Black Low Affect",
+                         "White High Affect", "Black High Affect")) +
+  labs(title = "LOEES Regression of Treatment Group Against Assigned Punishment",
+       subtitle = "punishment ~ treatment",
+       x = "Treatment Group",
+       y = "Punishment",
+       source = "Original mTurk study, conducted 12/3-12/5") +
+  theme_bw()
+
+deathpen_regression_graph <-
+  numeric_results %>%
+  filter(condition %in% c("blackhighaffect", "blacklowaffect",
+                         "whitehighaffect", "whitelowaffect")) %>%
+  drop_na(Q28) %>%
+   ggplot(aes(x = condition_scale, y = as.numeric(Q28), color = condition_scale)) +
+   geom_point() +
+   geom_smooth(method = "loess", formula = y~x) +
+   scale_color_continuous(name = "Condition", limits = c(1,4), labels = c("White Low Affect", "Black Low Affect",
+                         "White High Affect", "Black High Affect")) +
+  scale_x_continuous(labels=c("White Low Affect", "Black Low Affect",
+                         "White High Affect", "Black High Affect")) +
+  labs(title = "LOEES Regression of Treatment Group Against Death Penalty Deservedness",
+       subtitle = "death penalty deservedness ~ treatment",
+       x = "Treatment Group",
+       y = "Death Penalty Deservedness",
+       source = "Original mTurk study, conducted 12/3-12/5") +
+  theme_bw()
+
+moraloutrage_regression_graph <-
+  numeric_results %>%
+  filter(condition %in% c("blackhighaffect", "blacklowaffect",
+                         "whitehighaffect", "whitelowaffect")) %>%
+  drop_na(Q36_1) %>%
+   ggplot(aes(x = condition_scale, y = as.numeric(Q36_1), color = condition_scale)) +
+   geom_point() +
+   geom_smooth(method = "loess", formula = y~x) +
+   scale_color_continuous(name = "Condition", limits = c(1,4), labels = c("White Low Affect", "Black Low Affect",
+                         "White High Affect", "Black High Affect")) +
+  scale_x_continuous(labels=c("White Low Affect", "Black Low Affect",
+                         "White High Affect", "Black High Affect")) +
+  labs(title = "LOEES Regression of Treatment Group Against Moral Outrage",
+       subtitle = "moral outrage ~ treatment",
+       x = "Treatment Group",
+       y = "Moral Outrage",
+       source = "Original mTurk study, conducted 12/3-12/5") +
+  theme_bw()
+
+punishment_moraloutrage_regression_graph <-
+  numeric_results_2 %>%
+  filter(condition %in% c("blackhighaffect", "blacklowaffect",
+                         "whitehighaffect", "whitelowaffect")) %>%
+   ggplot(aes(x = moral_outrage, y = punishment)) +
+   geom_point(color = "red") +
+   geom_smooth(method = "loess", formula = y~x) +
+  labs(title = "LOESS Regression of Moral Outrage Against Punishment",
+       subtitle = "punishment ~ moral outrage",
+       x = "Moral Outrage",
+       y = "Assigned Punishment",
+       source = "Original mTurk study, conducted 12/3-12/5") +
+  theme_bw()
+```
+
+
+```{r, regressions}
+numeric_results_2 <-
+numeric_results %>%
+    rename(responsibility = Q69, punishment = Q27, deathpen = Q28,
+         moral_outrage = Q36_1)
 
 
 moral_responsibility.lm <- lm(Q69 ~ condition -1, data = numeric_results)
@@ -47,56 +311,153 @@ moral_responsibility.lm <- lm(Q69 ~ condition -1, data = numeric_results)
 summary(moral_responsibility.lm)
 confint(moral_responsibility.lm)
 
+demographics_moral_responsibility.lm <- lm(responsibility ~ gender + age + race + education 
+                                           + political_identification + religiosity + condition, data = numeric_results_2)
+
+summary(demographics_moral_responsibility.lm)
+confint(demographics_moral_responsibility.lm)
+
 punishment.lm <- lm(Q27 ~ condition -1, data = numeric_results)
 
 summary(punishment.lm)
 confint(punishment.lm)
+
+demographics_punishment.lm <- lm(punishment ~ gender + age + race + education 
+                                           + political_identification + religiosity + condition, data = numeric_results_2)
+
+summary(demographics_punishment.lm)
+confint(demographics_punishment.lm)
 
 deathpen.lm <- lm(Q28 ~ condition -1, data = numeric_results)
 
 summary(deathpen.lm)
 confint(deathpen.lm)
 
+demographics_deathpen.lm <- lm(deathpen ~ gender + age + race + education 
+                                           + political_identification + religiosity + condition, data = numeric_results_2)
+
+summary(demographics_deathpen.lm)
+confint(demographics_deathpen.lm)
+
 moraloutrage.lm <- lm(Q36_1 ~ condition -1, data = numeric_results)
 
 summary(moraloutrage.lm)
 confint(moraloutrage.lm)
 
+demographics_moraloutrage.lm <- lm(moral_outrage ~ gender + age + race + education 
+                                           + political_identification + religiosity + condition, data = numeric_results_2)
+
+summary(demographics_moraloutrage.lm)
+confint(demographics_deathpen.lm)
+
+punishment_moraloutrage.lm <- lm(punishment ~ moral_outrage, data = numeric_results_2)
+
+deathpen_moraloutrage.lm <- lm(deathpen ~ moral_outrage, data = numeric_results_2)
+
+summary(punishment_moraloutrage.lm)
+summary(deathpen_moraloutrage.lm)
+
+punishment_death.lm <- lm(deathpen ~ moral_outrage, data = numeric_results_2)
+
+summary(punishment_death.lm)
+```
+
+```{r}
+ tbl_regression(demographics_moral_responsibility.lm, intercept = TRUE,
+                   estimate_fun = function(x) style_sigfig(x, digits = 3)) %>%
+      as_gt() %>%
+      tab_header(title = "Linear Regression of Demographics against Assigned Moral Responsibilty") %>%
+      tab_source_note(md("Original mTurk study, conducted 12/3-12/5"))
+```
+
+
+```{r, race_t_tests}
+
+summary(aov(Q69 ~ condition, data = numeric_results))
+summary(aov(Q27 ~ condition, data = numeric_results))
+summary(aov(Q28 ~ condition, data = numeric_results))
+summary(aov(Q36_1 ~ condition, data = numeric_results))
+
+# condition %in% c("blackhighaffect", "blacklowaffect",
+#                         "whitehighaffect", "whitelowaffect"))
+
+race_1 <-
+numeric_results %>%
+  filter(condition %in% c( "blacklowaffect",
+                          "whitelowaffect"))
+  summary(aov(Q69 ~ condition, data = race_1))
+  
+   summary(aov(Q69 ~ condition, data = race_1))
+
+
 race_Q69_two_tail_low <- t.test(numeric_results_white_low$Q69, y = numeric_results_black_low$Q69, 
        alternative = c("two.sided", "less", "greater"), mu = 0, 
         paired = FALSE, var.equal = FALSE, conf.level = 0.95)
+
+race_2 <-
+numeric_results %>%
+  filter(condition %in% c( "whitehighaffect",
+                          "blackhighaffect"))
+  summary(aov(Q69 ~ condition, data = race_2))
 
 race_Q69_two_tail_high <- t.test(numeric_results_white_high$Q69, y = numeric_results_black_high$Q69, 
        alternative = c("two.sided", "less", "greater"), mu = 0, 
         paired = FALSE, var.equal = FALSE, conf.level = 0.95)
   
+  summary(aov(Q27 ~ condition, data = race_1))
 
 race_Q27_two_tail_low <- t.test(numeric_results_white_low$Q27, y = numeric_results_black_low$Q27, 
        alternative = c("two.sided", "less", "greater"), mu = 0, 
         paired = FALSE, var.equal = FALSE, conf.level = 0.95)
 
+summary(aov(Q27 ~ condition, data = race_2))
+
 race_Q27_two_tail_high <- t.test(numeric_results_white_high$Q27, y = numeric_results_black_high$Q27, 
        alternative = c("two.sided", "less", "greater"), mu = 0, 
         paired = FALSE, var.equal = FALSE, conf.level = 0.95)
+
+  summary(aov(Q28 ~ condition, data = race_1))
 
 race_Q28_two_tail_low <- t.test(numeric_results_white_low$Q28, y = numeric_results_black_low$Q28, 
        alternative = c("two.sided", "less", "greater"), mu = 0, 
         paired = FALSE, var.equal = FALSE, conf.level = 0.95)
 
+summary(aov(Q28 ~ condition, data = race_2))
+
 race_Q28_two_tail_high <- t.test(numeric_results_white_high$Q28, y = numeric_results_black_high$Q28, 
        alternative = c("two.sided", "less", "greater"), mu = 0, 
         paired = FALSE, var.equal = FALSE, conf.level = 0.95)     
+
+  summary(aov(Q36_1 ~ condition, data = race_1))
 
 race_Q36_two_tail_low <- t.test(numeric_results_white_low$Q36_1, y = numeric_results_black_low$Q36_1, 
        alternative = c("two.sided", "less", "greater"), mu = 0, 
         paired = FALSE, var.equal = FALSE, conf.level = 0.95)
 
+summary(aov(Q36_1 ~ condition, data = race_2))
+
 race_Q36_two_tail_high <- t.test(numeric_results_white_high$Q36_1, y = numeric_results_black_high$Q36_1, 
        alternative = c("two.sided", "less", "greater"), mu = 0, 
         paired = FALSE, var.equal = FALSE, conf.level = 0.95)   
-
 ```
-```{r}
+
+```{r, affect_t_tests}
+
+race_3 <-
+numeric_results %>%
+  filter(condition %in% c( "whitelowaffect",
+                          "whitehighaffect"))
+  summary(aov(Q69 ~ condition, data = race_3))
+  
+  summary(aov(time ~ condition, data = race_3))
+    summary(aov(time ~ condition, data = race_4))
+  
+  race_4 <-
+numeric_results %>%
+  filter(condition %in% c( "blacklowaffect",
+                          "blackhighaffect"))
+  summary(aov(Q69 ~ condition, data = race_4))
+
 affect_Q69_two_tail_white <- t.test(numeric_results_white_low$Q69, y = numeric_results_white_high$Q69, 
        alternative = c("two.sided", "less", "greater"), mu = 0, 
         paired = FALSE, var.equal = FALSE, conf.level = 0.95)
@@ -106,9 +467,17 @@ affect_Q69_two_tail_black <- t.test(numeric_results_black_low$Q69, y = numeric_r
         paired = FALSE, var.equal = FALSE, conf.level = 0.95)
   
 
+  summary(aov(Q27 ~ condition, data = race_3))
+  summary(aov(Q28 ~ condition, data = race_3))
+  summary(aov(Q36_1 ~ condition, data = race_3))
+
 affect_Q27_two_tail_white <- t.test(numeric_results_white_low$Q27, y = numeric_results_white_high$Q27, 
        alternative = c("two.sided", "less", "greater"), mu = 0, 
         paired = FALSE, var.equal = FALSE, conf.level = 0.95)
+
+summary(aov(Q27 ~ condition, data = race_4))
+summary(aov(Q28 ~ condition, data = race_4))
+  summary(aov(Q36_1 ~ condition, data = race_4))
 
 affect_Q27_two_tail_black <- t.test(numeric_results_black_low$Q27, y = numeric_results_black_high$Q27, 
        alternative = c("two.sided", "less", "greater"), mu = 0, 
@@ -130,4 +499,3 @@ affect_Q36_two_tail_black <- t.test(numeric_results_black_low$Q36_1, y = numeric
        alternative = c("two.sided", "less", "greater"), mu = 0, 
         paired = FALSE, var.equal = FALSE, conf.level = 0.95)  
 ```
-
